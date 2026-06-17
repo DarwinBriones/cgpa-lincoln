@@ -1,1 +1,223 @@
-https://github.com/DarwinBriones/cgpa-lincoln/blob/main/index.html 
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Registro de envíos CGPA — Lincoln College</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f5f5;color:#1a1a1a}
+.topbar{display:flex;align-items:center;gap:8px;padding:1rem;background:#fff;border-bottom:1px solid #e5e5e5;position:sticky;top:0;z-index:5}
+.topbar h2{font-size:15px;font-weight:600;flex:1}
+.save-ind{font-size:11px;color:#0F6E56}
+.contenedor{max-width:480px;margin:0 auto;padding:1rem}
+.stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:1rem}
+.stat{background:#fff;border-radius:10px;padding:10px 8px;text-align:center;border:1px solid #e5e5e5}
+.stat-num{font-size:22px;font-weight:700}
+.stat-num.ok{color:#0F6E56}
+.stat-num.pend{color:#BA7517}
+.stat-num.pct{color:#185FA5}
+.stat-label{font-size:11px;color:#888;margin-top:2px}
+.progress-bar{height:7px;background:#e5e5e5;border-radius:4px;margin-bottom:1rem}
+.progress-fill{height:7px;border-radius:4px;background:#1D9E75;transition:width 0.4s}
+.filter-row{display:flex;gap:6px;margin-bottom:1rem;overflow-x:auto}
+.filter-btn{font-size:12px;padding:6px 14px;border-radius:20px;border:1px solid #ddd;background:#fff;color:#666;cursor:pointer;white-space:nowrap;flex-shrink:0}
+.filter-btn.active{background:#1D9E75;color:#fff;border-color:#1D9E75}
+.grid-wrap{display:flex;flex-direction:column;gap:8px;padding-bottom:2rem}
+.sep-label{font-size:10px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.6px;padding:6px 0 4px}
+.fila{display:grid;grid-template-columns:repeat(6,1fr);gap:5px}
+.pill{display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 3px 7px;border-radius:10px;border:1px solid #F09595;background:#fff8f8;cursor:pointer;text-align:center;transition:all 0.15s}
+.pill:active{transform:scale(0.96)}
+.pill.enviado{border-color:#5DCAA5;background:#f8fefb;cursor:default}
+.pill-curso{font-size:11px;font-weight:600;color:#1a1a1a}
+.pill.enviado .pill-curso{color:#0F6E56}
+.pill-nombre{font-size:9px;color:#888;line-height:1.3;word-break:break-word}
+.pill.enviado .pill-nombre{color:#0F6E56}
+.pill-tag{font-size:8px;font-weight:600;padding:2px 5px;border-radius:10px;margin-top:1px}
+.pill-tag.pend{background:#FCEBEB;color:#A32D2D}
+.pill-tag.env{background:#E1F5EE;color:#0F6E56}
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;z-index:50}
+.modal{background:#fff;border-radius:16px;padding:1.5rem;width:288px;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,0.15)}
+.modal-icon{font-size:40px;margin-bottom:10px}
+.modal h3{font-size:17px;font-weight:600;margin-bottom:4px}
+.modal .sub{font-size:13px;color:#666;margin-bottom:1.25rem;line-height:1.5}
+.modal-btns{display:flex;gap:8px}
+.mbtn-ok{flex:1;padding:11px;border-radius:10px;border:none;background:#1D9E75;color:#fff;font-size:14px;font-weight:600;cursor:pointer}
+.mbtn-cancel{flex:1;padding:11px;border-radius:10px;border:1px solid #ddd;background:#fff;color:#666;font-size:14px;cursor:pointer}
+.toast{position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%);background:#1a1a1a;color:#fff;font-size:13px;padding:10px 20px;border-radius:20px;z-index:100;opacity:0;transition:opacity 0.3s;pointer-events:none}
+.toast.show{opacity:1}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <span style="font-size:20px">✅</span>
+  <h2>Registro de envíos CGPA</h2>
+  <span class="save-ind" id="saveInd"></span>
+</div>
+<div class="contenedor">
+  <div class="stats-row">
+    <div class="stat"><div class="stat-num ok" id="cntOk">0</div><div class="stat-label">Enviados</div></div>
+    <div class="stat"><div class="stat-num pend" id="cntPend">43</div><div class="stat-label">Pendientes</div></div>
+    <div class="stat"><div class="stat-num pct" id="cntPct">0%</div><div class="stat-label">Avance</div></div>
+  </div>
+  <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+  <div class="filter-row">
+    <button class="filter-btn active" onclick="setFilter('todos',this)">Todos</button>
+    <button class="filter-btn" onclick="setFilter('pendientes',this)">Por enviar</button>
+    <button class="filter-btn" onclick="setFilter('enviados',this)">Enviados</button>
+  </div>
+  <div class="grid-wrap" id="gridWrap"></div>
+</div>
+<div class="modal-bg" id="modalEl" style="display:none">
+  <div class="modal">
+    <div class="modal-icon">📤</div>
+    <h3 id="modal-curso"></h3>
+    <div class="sub" id="modal-sub"></div>
+    <div class="modal-btns">
+      <button class="mbtn-cancel" onclick="closeModal()">Cancelar</button>
+      <button class="mbtn-ok" onclick="confirmar()">Sí, envié ✓</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+const GRUPOS=[
+  {sep:'Pre-Kinder / Kinder',cursos:[
+    {id:'pka',label:'PK°A',delegado:'Karla Gomez'},
+    {id:'pkb',label:'PK°B',delegado:'Camila Palma'},
+    {id:'pkc',label:'PK°C',delegado:'Natalie Arriagada'},
+    {id:'ka',label:'K°A',delegado:'Regina Valladares'},
+    {id:'kb',label:'K°B',delegado:'Denisse Silva'},
+    {id:'kc',label:'K°C',delegado:'Joselin Vargas'},
+  ]},
+  {sep:'1° — 2° Básico',cursos:[
+    {id:'1a',label:'1°A',delegado:'Stephania Martinez'},
+    {id:'1b',label:'1°B',delegado:'Millarai Ribert'},
+    {id:'1c',label:'1°C',delegado:'Jose Fredes'},
+    {id:'2a',label:'2°A',delegado:'Monica Antillanca'},
+    {id:'2b',label:'2°B',delegado:'Paola Bizama'},
+    {id:'2c',label:'2°C',delegado:'Paulina Soto'},
+  ]},
+  {sep:'3° — 4° Básico',cursos:[
+    {id:'3a',label:'3°A',delegado:'Daisy Quezada'},
+    {id:'3b',label:'3°B',delegado:'Francisca Chamorro'},
+    {id:'3c',label:'3°C',delegado:'Camila Femenias'},
+    {id:'4a',label:'4°A',delegado:'Maria Paz Venegas'},
+    {id:'4b',label:'4°B',delegado:'Berta Latin'},
+    {id:'4c',label:'4°C',delegado:'Nicol Olivos'},
+  ]},
+  {sep:'5° — 6° Básico',cursos:[
+    {id:'5a',label:'5°A',delegado:'Natalia Rivas'},
+    {id:'5b',label:'5°B',delegado:'Lorena Mejias'},
+    {id:'5c',label:'5°C',delegado:'Paulina Vega'},
+    {id:'6a',label:'6°A',delegado:'Maria Carlina Soto'},
+    {id:'6b',label:'6°B',delegado:'Priscila Godoy'},
+    {id:'6c',label:'6°C',delegado:'Denisse Amigo'},
+  ]},
+  {sep:'7° — 8° Básico',cursos:[
+    {id:'7a',label:'7°A',delegado:'Marisel Gonzalez'},
+    {id:'7b',label:'7°B',delegado:'Cristina Concha'},
+    {id:'7c',label:'7°C',delegado:'Jennifer Novoa'},
+    {id:'8a',label:'8°A',delegado:'Sandra Gutierrez'},
+    {id:'8b',label:'8°B',delegado:'Natalia Herrera'},
+    {id:'8c',label:'8°C',delegado:'Paula Rojas'},
+  ]},
+  {sep:'1° — 2° Medio',cursos:[
+    {id:'1ma',label:'1M°A',delegado:'Viviana Otarola'},
+    {id:'1mb',label:'1M°B',delegado:'Katherine Mellado'},
+    {id:'1mc',label:'1M°C',delegado:'Carolina Orellano'},
+    {id:'1md',label:'1M°D',delegado:'Yohana Osorio'},
+    {id:'2ma',label:'2M°A',delegado:'Judith Molina'},
+    {id:'2mb',label:'2M°B',delegado:'Denisse Silva'},
+  ]},
+  {sep:'3° — 4° Medio',cursos:[
+    {id:'2mc',label:'2M°C',delegado:'Karen Ahumada'},
+    {id:'3ma',label:'3M°A',delegado:'Silvana Hurtado'},
+    {id:'3mb',label:'3M°B',delegado:'Carolina Fernandez'},
+    {id:'3mc',label:'3M°C',delegado:'Darwin Briones'},
+    {id:'4ma',label:'4M°A',delegado:'Julio Brito'},
+    {id:'4mb',label:'4M°B',delegado:'Marcela Fuentealba'},
+  ]},
+  {sep:'',cursos:[
+    {id:'4mc',label:'4M°C',delegado:'Sergio Abarca'},
+  ]},
+];
+const KEY='cgpa-lincoln-enviados';
+let enviados={};
+let filter='todos';
+let pendingId=null;
+function loadData(){
+  try{const d=localStorage.getItem(KEY);if(d)enviados=JSON.parse(d);}catch(e){}
+  updateStats();renderGrid();
+}
+function saveData(){
+  try{
+    localStorage.setItem(KEY,JSON.stringify(enviados));
+    const ind=document.getElementById('saveInd');
+    ind.textContent='✓ Guardado';
+    setTimeout(()=>ind.textContent='',2000);
+  }catch(e){}
+}
+function updateStats(){
+  const ok=Object.keys(enviados).length;
+  document.getElementById('cntOk').textContent=ok;
+  document.getElementById('cntPend').textContent=43-ok;
+  document.getElementById('cntPct').textContent=Math.round(ok/43*100)+'%';
+  document.getElementById('progressFill').style.width=Math.round(ok/43*100)+'%';
+}
+function setFilter(f,btn){
+  filter=f;
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderGrid();
+}
+function firstName(d){const p=d.split(' ');return p[0]+(p[1]?' '+p[1]:'');}
+function renderGrid(){
+  const wrap=document.getElementById('gridWrap');
+  wrap.innerHTML=GRUPOS.map(g=>{
+    const pills=g.cursos.map(c=>{
+      const env=enviados[c.id];
+      const hidden=(filter==='enviados'&&!env)||(filter==='pendientes'&&env)?'style="display:none"':'';
+      const tag=env?'<span class="pill-tag env">Enviado</span>':'<span class="pill-tag pend">Por enviar</span>';
+      return `<div class="pill${env?' enviado':''}" ${hidden} onclick="${env?'':`openModal('${c.id}')`}">
+        <div class="pill-curso">${c.label}</div>
+        <div class="pill-nombre">${firstName(c.delegado)}</div>
+        ${tag}
+      </div>`;
+    }).join('');
+    const allHidden=g.cursos.every(c=>{const env=enviados[c.id];return(filter==='enviados'&&!env)||(filter==='pendientes'&&env);});
+    return `<div${allHidden?' style="display:none"':''}>
+      ${g.sep?`<div class="sep-label">${g.sep}</div>`:''}
+      <div class="fila">${pills}</div>
+    </div>`;
+  }).join('');
+}
+function findCurso(id){let f=null;GRUPOS.forEach(g=>g.cursos.forEach(c=>{if(c.id===id)f=c;}));return f;}
+function openModal(id){
+  pendingId=id;
+  const c=findCurso(id);
+  document.getElementById('modal-curso').textContent=c.label+' — '+c.delegado;
+  document.getElementById('modal-sub').innerHTML='¿Confirmas que ya enviaste<br>la información a tu curso?';
+  document.getElementById('modalEl').style.display='flex';
+}
+function closeModal(){document.getElementById('modalEl').style.display='none';pendingId=null;}
+function confirmar(){
+  const c=findCurso(pendingId);
+  const ahora=new Date();
+  const hora=ahora.toLocaleDateString('es-CL',{day:'2-digit',month:'2-digit',year:'numeric'})+' '+ahora.toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit'});
+  enviados[pendingId]={delegado:c.delegado,curso:c.label,hora};
+  closeModal();
+  saveData();
+  updateStats();
+  renderGrid();
+  showToast('✓ Envío registrado — '+c.label);
+}
+function showToast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2500);
+}
+loadData();
+</script>
+</body>
+</html>https://github.com/DarwinBriones/cgpa-lincoln/blob/main/index.html 
